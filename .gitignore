@@ -6,6 +6,15 @@
 # dotenv files
 .env
 
+#shit
+publish/
+publish.zip
+logs.zip
+logs2.zip
+*.db
+*.db-shm
+*.db-wal
+
 # User-specific files
 *.rsuser
 *.suo

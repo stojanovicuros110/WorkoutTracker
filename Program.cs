@@ -13,7 +13,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 if (connectionString is null)
 {
     builder.Services.AddDbContext<AppDbContext>(opt =>
-        opt.UseSqlite("Data Source=workout_tracker.db"));
+        opt.UseSqlServer(@"Server=(localdb)\MSSQLLocalDB;Database=WorkoutTrackerDb;Trusted_Connection=True;"));
 }
 else
 {
