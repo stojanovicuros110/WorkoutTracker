@@ -17,23 +17,49 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-          
+
       - name: Install EF Core CLI
         run: dotnet tool install --global dotnet-ef --version 10.0.8
-      
+
       - name: Restore
         run: dotnet restore WorkoutTracker.csproj
-        
-      - name: Run Migrations
-        run: dotnet ef database update --connection "${{ secrets.AZURE_SQL_CONNECTION_STRING }}"
-        
-      - name: Publish
-        run: dotnet publish WorkoutTracker.csproj -c Release -o ./publish
 
+      # ADDED: login earlier, because GitHub must authenticate before reading Key Vault
       - name: Login to Azure
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ADDED: get SQL connection string from Key Vault instead of GitHub secret
+      - name: Get SQL connection string from Key Vault
+        run: |
+          SQL_CONNECTION_STRING=$(az keyvault secret show \
+            --vault-name workout-tracker-kv-uros \
+            --name DefaultConnection \
+            --query value -o tsv)
+
+          echo "SQL_CONNECTION_STRING=$SQL_CONNECTION_STRING" >> $GITHUB_ENV
+
+      # CHANGED: retry migration instead of simple one-time command
+      - name: Run Migrations
+        shell: bash
+        run: |
+          for i in {1..5}; do
+            echo "Migration attempt $i..."
+            if dotnet ef database update --connection "$SQL_CONNECTION_STRING"; then
+              echo "Migration succeeded."
+              exit 0
+            fi
+
+            echo "Migration failed. Waiting 60 seconds before retry..."
+            sleep 60
+          done
+
+          echo "Migration failed after 5 attempts."
+          exit 1
+
+      - name: Publish
+        run: dotnet publish WorkoutTracker.csproj -c Release -o ./publish
 
       - name: Deploy to Azure
         uses: azure/webapps-deploy@v3
